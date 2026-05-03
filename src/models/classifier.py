@@ -9,12 +9,18 @@ class DefectClassifier(nn.Module):
 
         weights = models.ResNet18_Weights.DEFAULT if pretrained else None
         self.model = models.resnet18(weights=weights)
+
+        # Freeze first
         if freeze_layers:
-            for param in self.model.parameters():
+            for name, param in self.model.named_parameters():
                 param.requires_grad = False
-            for param in self.model.layer4.parameters():
+
+        # Unfreeze layer4
+        for name, param in self.model.named_parameters():
+            if 'layer4' in name:
                 param.requires_grad = True
 
+        # Replace final layer — always trainable
         in_features = self.model.fc.in_features
         self.model.fc = nn.Sequential(
             nn.Dropout(p=0.3),
@@ -28,4 +34,5 @@ class DefectClassifier(nn.Module):
         return self.model.layer4[-1]
 
     def count_trainable_params(self):
-        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+        return sum(p.numel() for p in self.parameters()
+                   if p.requires_grad)
