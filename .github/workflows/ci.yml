@@ -1,0 +1,59 @@
+name: Manufacturing Defect AI — CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        pip install scikit-learn matplotlib seaborn pytest pillow numpy
+
+    - name: Run all tests
+      run: |
+        python -m pytest tests/test_pipeline.py -v
+
+    - name: Validate model architecture
+      run: |
+        python -c "
+        import torch
+        from src.models.classifier import DefectClassifier
+        model = DefectClassifier(num_classes=6, pretrained=False)
+        x = torch.randn(2, 3, 224, 224)
+        out = model(x)
+        assert out.shape == (2, 6), f'Wrong output shape: {out.shape}'
+        print('Model architecture validated — output shape correct')
+        "
+
+    - name: Check all source files exist
+      run: |
+        python -c "
+        import os
+        required = [
+            'src/pipeline/dataset.py',
+            'src/pipeline/transforms.py',
+            'src/models/classifier.py',
+            'src/training/train.py',
+            'src/training/evaluate.py',
+            'tests/test_pipeline.py'
+        ]
+        for f in required:
+            assert os.path.exists(f), f'Missing file: {f}'
+            print(f'Found: {f}')
+        print('All required files present')
+        "
